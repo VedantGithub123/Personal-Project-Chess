@@ -26,25 +26,32 @@ def deepTuple(board): # Creates a deep copy with tuples instead of lists
 
 def fileAddData(board, eval):  # Writes the board to a file in a certain format
   # Flattens the board and joins it with a " " between the different values
-  if deepTuple(board) not in boardToEvalAlgo:
-    dataFileAlgo.write(" ".join(map(str, board.flatten())) + " " + str(eval) + "\n")
+  dataFileAlgo.write(" ".join(map(str, board.flatten())) + " " + str(eval) + "\n")
 
 def makeMove(move):  # Changes the chessboard and swaps the turn
   # Says we are changing the global vairables instead of new ones in a smaller scope
   global chessBoard
   global turn
   global prevBoard
+  global prevCaptureLen
+
   turn = 3 - turn
   boardAsTuple = deepTuple(chessBoard)
   if boardAsTuple in prevMoves:
     prevMoves[boardAsTuple] += 1
   else:
     prevMoves[boardAsTuple] = 1
+  prevCaptureLen+=1
+  if pointSum(move)!=pointSum(chessBoard):
+    prevCaptureLen = 0
   prevBoard = copy.deepcopy(chessBoard)
   chessBoard = copy.deepcopy(move)
   
 def evaluatePos(board):  # Uses points to evaulate the position of the board
   # Adds together the different point values, subtracts if black's pieces
+  boardAsTuple = deepTuple(board)
+  if boardAsTuple in boardToEvalAlgo:  # If the algo already calculated it, use that value
+    return boardToEvalAlgo[boardAsTuple]
   sum = 0
   for x, i in enumerate(board):
     for y, j in enumerate(i):
@@ -304,6 +311,7 @@ def isStalemate(board, t):
   # Or only 2 kings and a minor piece
   return ((not inCheck(board, t) and len(getPossibleMoves(board, t)) == 0)
           or any(i >= 3 for i in prevMoves.values())
+          or prevCaptureLen>=50
           or pointSum(board) == VALUES[KING] + VALUES[KING]
           or (pointSum(board) == VALUES[KING] + VALUES[KING] + VALUES[KNIGHT] and all(i[0]!=PAWN for i in board)) # Same as KING+KING+BISHOP
           )
@@ -586,8 +594,8 @@ def getPossibleMoves(board, t):
 def algoDecide(board, t, depth):  # Run a recursive algorithm to find the best move
   global boardToEvalAlgo
   global prevBoard
-  
-  prevBoard2 = copy.deepcopy(prevBoard)
+  global prevCaptureLen
+  global prevMoves
 
   if isCheckmate(board,  t):  # If it's checkmate, return who won and the position
     if t == BLACK:
@@ -598,12 +606,25 @@ def algoDecide(board, t, depth):  # Run a recursive algorithm to find the best m
     return (0, board)
   
   if depth == 0:  # If it should not look in the future, evaluate the position
-    boardAsTuple = deepTuple(board)
-    if boardAsTuple in boardToEvalAlgo:  # If the algo already calculated it, use that value
-      return (boardToEvalAlgo[boardAsTuple], board)
     boardEval = evaluatePos(board)
     # Scale the evaluation from -0.9 to 0.9 and return it with the board
     return (max(-1.9, min(boardEval / 12, 1.9)), board)
+  
+  prevMoves2 = prevMoves.copy()
+  prevBoard2 = copy.deepcopy(prevBoard)
+  prevCaptureLen2 = prevCaptureLen
+  
+  boardAsTuple = deepTuple(board)
+  if boardAsTuple in prevMoves:
+    prevMoves[boardAsTuple] += 1
+  else:
+    prevMoves[boardAsTuple] = 1
+
+  prevCaptureLen+=1
+  if pointSum(board)!=pointSum(prevBoard):
+    prevCaptureLen = 0
+
+  prevBoard = copy.deepcopy(board)
 
   # Look at all the moves and check which one is the best move
   getEval = lambda board: board[0]
@@ -612,13 +633,14 @@ def algoDecide(board, t, depth):  # Run a recursive algorithm to find the best m
   arr = [(algoDecide(i, 3 - t, depth - 1)[0], i) if deepTuple(i) not in prevMoves else (algoDecide(i, 3 - t, depth - 1)[0]*0.2, i) for i in getPossibleMoves(board, t)]
   bestMove = max(arr, key=getEval)
 
+  prevMoves = prevMoves2.copy()
+  prevCaptureLen = prevCaptureLen2
+  prevBoard = copy.deepcopy(prevBoard2)
+
   # If the move hasn't been stored, store it in the dictionary and the file
   if depth>=algoDepth-1:
     moveAsTuple = deepTuple(bestMove[1])
-    fileAddData(bestMove[1], bestMove[0])
     boardToEvalAlgo[moveAsTuple] = bestMove[0]
-  
-  prevBoard = copy.deepcopy(prevBoard2)
 
   return bestMove
 
@@ -682,6 +704,9 @@ prevMoves = {}
 # Stores the last board position
 prevBoard = copy.deepcopy(chessBoard)
 
+# Vairable to store the number of moves since the last capture or pawn move
+prevCaptureLen = 0
+
 # Reads data from the file to a dictionary storing the evaluation of boards
 dataFileAlgo = open("dataStorageAlgo.txt", "r")
 boardToEvalAlgo = {
@@ -719,24 +744,40 @@ def m(x):
     if x[0]==PAWN:
       return "♟︎"
   return " "
-dataFileAlgo = open("dataStorageAlgo.txt", "a")
-print (u"\u001b[47m")
 
-while True:
-  makeMove(algoDecide(chessBoard, turn, algoDepth)[1])
-  print()
-  for i in [chessBoard]:
-      for j in i:
-        print(" , ".join([m(x) for x in j]))
-  if isCheckmate(chessBoard, turn):
-    print(str(3-turn) + " Wins!!")
-    break
-  elif isStalemate(chessBoard, turn):
-    print("Tie!!")
-    break
-  print("{:0.2f}".format(evaluatePos(chessBoard)))
+for lasd in range(1):
+  chessBoard = np.array([
+      [np.array([piece, BLACK]) for piece in [4, 3, 2, 5, 6, 2, 3, 4]],
+      [np.array([PAWN, BLACK])] * 8,
+      [np.array([NOTHING, NOCOLOR])] * 8,
+      [np.array([NOTHING, NOCOLOR])] * 8,
+      [np.array([NOTHING, NOCOLOR])] * 8,
+      [np.array([NOTHING, NOCOLOR])] * 8,
+      [np.array([PAWN, WHITE])] * 8,
+      [np.array([piece, WHITE]) for piece in [4, 3, 2, 5, 6, 2, 3, 4]],
+  ])
+  prevMoves = {}
+  prevBoard = copy.deepcopy(chessBoard)
+  prevCaptureLen = 0
 
-dataFileAlgo.close()
+  print (u"\u001b[47m")
+  while True:
+    makeMove(algoDecide(chessBoard, turn, algoDepth)[1])
+    print()
+    for i in [chessBoard]:
+        for j in i:
+          print(" , ".join([m(x) for x in j]))
+    if isCheckmate(chessBoard, turn):
+      print(str(3-turn) + " Wins!!")
+      break
+    elif isStalemate(chessBoard, turn):
+      print("Tie!!")
+      break
+    print("{:0.2f}".format(evaluatePos(chessBoard)))
+  dataFileAlgo = open("dataStorageAlgo.txt", "w")
+  for i in boardToEvalAlgo:
+    fileAddData(np.array(i), boardToEvalAlgo[i])
+  dataFileAlgo.close()
 
 exit(1)
 # Runs game below
