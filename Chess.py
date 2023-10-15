@@ -12,7 +12,6 @@ import numpy as np
 import pygame as pg
 import copy
 import time
-import random
 
 
 # Defines functions below
@@ -34,6 +33,8 @@ def makeMove(move):  # Changes the chessboard and swaps the turn
   global turn
   global prevBoard
   global prevCaptureLen
+  global castleShort
+  global castleLong
 
   turn = 3 - turn
   boardAsTuple = deepTuple(chessBoard)
@@ -45,6 +46,20 @@ def makeMove(move):  # Changes the chessboard and swaps the turn
   if pointSum(move)!=pointSum(chessBoard):
     prevCaptureLen = 0
   prevBoard = copy.deepcopy(chessBoard)
+  if not all(move[0][0]==[ROOK, BLACK]):
+    castleLong[BLACK] == False
+  if not all(move[7][0]==[ROOK, WHITE]):
+    castleLong[WHITE] == False
+  if not all(move[0][7]==[ROOK, BLACK]):
+    castleShort[BLACK] == False
+  if not all(move[7][7]==[ROOK, WHITE]):
+    castleShort[WHITE] == False
+  if not all(move[0][4]==[KING, BLACK]):
+      castleLong[BLACK] == False
+      castleShort[BLACK] == False
+  if not all(move[7][4]==[KING, WHITE]):
+      castleLong[WHITE] == False
+      castleShort[WHITE] == False
   chessBoard = copy.deepcopy(move)
   
 def evaluatePos(board):  # Uses points to evaulate the position of the board
@@ -589,6 +604,41 @@ def getPossibleMoves(board, t):
                 newBoards[-1][x][y] = [NOTHING, NOCOLOR]
                 if inCheck(newBoards[-1], t):
                   newBoards.pop(-1)
+  row = 0
+  if t==WHITE:
+    row = 7
+  if castleLong[t] and not inCheck(board, t) and all(board[row][1]==[NOTHING, NOCOLOR]) and all(board[row][2]==[NOTHING, NOCOLOR]) and all(board[row][3]==[NOTHING, NOCOLOR]):
+    copyBoard = copy.deepcopy(board)
+    copyBoard[row][2]=np.array([KING, t])
+    copyBoard[row][4]=np.array([NOTHING, NOCOLOR])
+    if not inCheck(copyBoard, t):
+      copyBoard = copy.deepcopy(board)
+      copyBoard[row][3]=np.array([KING, t])
+      copyBoard[row][4]=np.array([NOTHING, NOCOLOR])
+      if not inCheck(copyBoard, t):
+        copyBoard = copy.deepcopy(board)
+        copyBoard[row][2]=np.array([KING, t])
+        copyBoard[row][3]=np.array([KING, ROOK])
+        copyBoard[row][4]=np.array([NOTHING, NOCOLOR])
+        copyBoard[row][0]=np.array([NOTHING, NOCOLOR])
+        newBoards.append(copy.deepcopy(copyBoard))
+
+  if castleShort[t] and not inCheck(board, t) and all(board[row][5]==[NOTHING, NOCOLOR]) and all(board[row][6]==[NOTHING, NOCOLOR]):
+    copyBoard = copy.deepcopy(board)
+    copyBoard[row][6]=np.array([KING, t])
+    copyBoard[row][4]=np.array([NOTHING, NOCOLOR])
+    if not inCheck(copyBoard, t):
+      copyBoard = copy.deepcopy(board)
+      copyBoard[row][6]=np.array([KING, t])
+      copyBoard[row][4]=np.array([NOTHING, NOCOLOR])
+      if not inCheck(copyBoard, t):
+        copyBoard = copy.deepcopy(board)
+        copyBoard[row][6]=np.array([KING, t])
+        copyBoard[row][5]=np.array([KING, ROOK])
+        copyBoard[row][7]=np.array([NOTHING, NOCOLOR])
+        copyBoard[row][4]=np.array([NOTHING, NOCOLOR])
+        newBoards.append(copy.deepcopy(copyBoard))
+
   return newBoards
 
 def algoDecide(board, t, depth):  # Run a recursive algorithm to find the best move
@@ -596,6 +646,8 @@ def algoDecide(board, t, depth):  # Run a recursive algorithm to find the best m
   global prevBoard
   global prevCaptureLen
   global prevMoves
+  global castleShort
+  global castleLong
 
   if isCheckmate(board,  t):  # If it's checkmate, return who won and the position
     if t == BLACK:
@@ -611,6 +663,8 @@ def algoDecide(board, t, depth):  # Run a recursive algorithm to find the best m
     return (max(-1.9, min(boardEval / 12, 1.9)), board)
   
   prevMoves2 = prevMoves.copy()
+  castleLong2 = castleLong.copy()
+  castleShort2 = castleShort.copy()
   prevBoard2 = copy.deepcopy(prevBoard)
   prevCaptureLen2 = prevCaptureLen
   
@@ -626,6 +680,21 @@ def algoDecide(board, t, depth):  # Run a recursive algorithm to find the best m
 
   prevBoard = copy.deepcopy(board)
 
+  if not all(board[0][0]==[ROOK, BLACK]):
+    castleLong[BLACK] == False
+  if not all(board[7][0]==[ROOK, WHITE]):
+    castleLong[WHITE] == False
+  if not all(board[0][7]==[ROOK, BLACK]):
+    castleShort[BLACK] == False
+  if not all(board[7][7]==[ROOK, WHITE]):
+    castleShort[WHITE] == False
+  if not all(board[0][4]==[KING, BLACK]):
+      castleLong[BLACK] == False
+      castleShort[BLACK] == False
+  if not all(board[7][4]==[KING, WHITE]):
+      castleLong[WHITE] == False
+      castleShort[WHITE] == False
+
   # Look at all the moves and check which one is the best move
   getEval = lambda board: board[0]
   if t == BLACK:  # If the turn is black, look for the move with the lowest value
@@ -634,6 +703,8 @@ def algoDecide(board, t, depth):  # Run a recursive algorithm to find the best m
   bestMove = max(arr, key=getEval)
 
   prevMoves = prevMoves2.copy()
+  castleShort = castleShort2.copy()
+  castleLong = castleLong2.copy()
   prevCaptureLen = prevCaptureLen2
   prevBoard = copy.deepcopy(prevBoard2)
 
@@ -651,6 +722,47 @@ def mlDecide(board, t, depth):  # Runs the ML algorithm to generate the move
   if mlDecision in getPossibleMoves(board, t):
     return mlDecision
   return algoDecide(board, t, depth)[1]
+
+def resetBoard():
+  global algoDepth
+  global turn
+  global order
+  global chessBoard
+  global prevMoves
+  global prevBoard
+  global prevCaptureLen
+  global castleLong
+  global castleShort
+
+  algoDepth = 3
+  turn = WHITE
+  order = {
+    WHITE: PLAYER,
+    BLACK: PLAYER
+  }
+  chessBoard = np.array([
+      [np.array([piece, BLACK]) for piece in [4, 3, 2, 5, 6, 2, 3, 4]],
+      [np.array([PAWN, BLACK])] * 8,
+      [np.array([NOTHING, NOCOLOR])] * 8,
+      [np.array([NOTHING, NOCOLOR])] * 8,
+      [np.array([NOTHING, NOCOLOR])] * 8,
+      [np.array([NOTHING, NOCOLOR])] * 8,
+      [np.array([PAWN, WHITE])] * 8,
+      [np.array([piece, WHITE]) for piece in [4, 3, 2, 5, 6, 2, 3, 4]],
+  ])
+  prevMoves = {}
+  prevBoard = copy.deepcopy(chessBoard)
+  prevCaptureLen = 0
+  castleLong = {
+    WHITE: True,
+    BLACK: True
+  }
+
+  castleShort = {
+    WHITE: True,
+    BLACK: True
+  }
+
 
 
 # Defines constant vairables below
@@ -673,17 +785,38 @@ VALUES = {
 NOCOLOR, WHITE, BLACK = 0, 1, 2
 PLAYER, ALGO, ML = 0, 1, 2
 
-# Stores the depth of the algorithm
-algoDepth = 3
 
 # Defines non-constant variables below
+
+# Reads data from the file to a dictionary storing the evaluation of boards
+dataFileAlgo = open("dataStorageAlgo.txt", "r")
+boardToEvalAlgo = {
+    deepTuple(boardFromNums(line.split(" ")[:-1])): float(line.split(" ")[-1])
+    for line in dataFileAlgo.readlines()
+}
+dataFileAlgo.close()
+
+# Stores the current turn
 turn = WHITE
+
+# Stores the depth of the algorithm
+algoDepth = 3
 
 # Stores which color is which player
 order = {
     WHITE: PLAYER,
     BLACK: PLAYER
 }  # Depending on game configuration, this can change
+
+castleLong = {
+  WHITE: True,
+  BLACK: True
+}
+
+castleShort = {
+  WHITE: True,
+  BLACK: True
+}
 
 # Creates the inital starting board
 chessBoard = np.array([
@@ -706,14 +839,6 @@ prevBoard = copy.deepcopy(chessBoard)
 
 # Vairable to store the number of moves since the last capture or pawn move
 prevCaptureLen = 0
-
-# Reads data from the file to a dictionary storing the evaluation of boards
-dataFileAlgo = open("dataStorageAlgo.txt", "r")
-boardToEvalAlgo = {
-    deepTuple(boardFromNums(line.split(" ")[:-1])): float(line.split(" ")[-1])
-    for line in dataFileAlgo.readlines()
-}
-dataFileAlgo.close()
 
 # Open the file to add more data
 def m(x):
@@ -746,19 +871,7 @@ def m(x):
   return " "
 
 for lasd in range(1):
-  chessBoard = np.array([
-      [np.array([piece, BLACK]) for piece in [4, 3, 2, 5, 6, 2, 3, 4]],
-      [np.array([PAWN, BLACK])] * 8,
-      [np.array([NOTHING, NOCOLOR])] * 8,
-      [np.array([NOTHING, NOCOLOR])] * 8,
-      [np.array([NOTHING, NOCOLOR])] * 8,
-      [np.array([NOTHING, NOCOLOR])] * 8,
-      [np.array([PAWN, WHITE])] * 8,
-      [np.array([piece, WHITE]) for piece in [4, 3, 2, 5, 6, 2, 3, 4]],
-  ])
-  prevMoves = {}
-  prevBoard = copy.deepcopy(chessBoard)
-  prevCaptureLen = 0
+  resetBoard()
 
   print (u"\u001b[47m")
   while True:
@@ -774,6 +887,7 @@ for lasd in range(1):
       print("Tie!!")
       break
     print("{:0.2f}".format(evaluatePos(chessBoard)))
+    print(inCheck(chessBoard, turn))
   dataFileAlgo = open("dataStorageAlgo.txt", "w")
   for i in boardToEvalAlgo:
     fileAddData(np.array(i), boardToEvalAlgo[i])
