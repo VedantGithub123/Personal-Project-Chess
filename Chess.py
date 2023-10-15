@@ -33,12 +33,14 @@ def makeMove(move):  # Changes the chessboard and swaps the turn
   # Says we are changing the global vairables instead of new ones in a smaller scope
   global chessBoard
   global turn
+  global prevBoard
   turn = 3 - turn
   boardAsTuple = deepTuple(chessBoard)
   if boardAsTuple in prevMoves:
     prevMoves[boardAsTuple] += 1
   else:
     prevMoves[boardAsTuple] = 1
+  prevBoard = copy.deepcopy(chessBoard)
   chessBoard = copy.deepcopy(move)
   
 def evaluatePos(board):  # Uses points to evaulate the position of the board
@@ -303,8 +305,8 @@ def isStalemate(board, t):
   return ((not inCheck(board, t) and len(getPossibleMoves(board, t)) == 0)
           or any(i >= 3 for i in prevMoves.values())
           or pointSum(board) == VALUES[KING] + VALUES[KING]
-          or pointSum(board) == VALUES[KING] + VALUES[KING] + VALUES[KNIGHT]
-          )  # Same as KING+KING+BISHOP
+          or (pointSum(board) == VALUES[KING] + VALUES[KING] + VALUES[KNIGHT] and all(i[0]!=PAWN for i in board)) # Same as KING+KING+BISHOP
+          )
 
 def getPossibleMoves(board, t):
   newBoards = []
@@ -337,6 +339,25 @@ def getPossibleMoves(board, t):
                 newBoards[-1][x][y] = [NOTHING, NOCOLOR]
                 if inCheck(newBoards[-1], t):
                   newBoards.pop(-1)
+            if x == 4:
+              if y<7:
+                if all(board[x][y+1] == [PAWN, WHITE]) and all(board[6][y+1] == [NOTHING, NOCOLOR]) and all(prevBoard[6][y+1] == [PAWN, WHITE]):
+                  newBoards.append(copy.deepcopy(board))
+                  newBoards[-1][x + 1][y + 1] = copy.deepcopy(
+                      newBoards[-1][x][y])
+                  newBoards[-1][x][y] = [NOTHING, NOCOLOR]
+                  newBoards[-1][x][y+1] = [NOTHING, NOCOLOR]
+                  if inCheck(newBoards[-1], t):
+                    newBoards.pop(-1)
+              if y>0:
+                if all(board[x][y-1] == [PAWN, WHITE]) and all(board[6][y-1] == [NOTHING, NOCOLOR]) and all(prevBoard[6][y-1] == [PAWN, WHITE]):
+                  newBoards.append(copy.deepcopy(board))
+                  newBoards[-1][x + 1][y - 1] = copy.deepcopy(
+                      newBoards[-1][x][y])
+                  newBoards[-1][x][y] = [NOTHING, NOCOLOR]
+                  newBoards[-1][x][y-1] = [NOTHING, NOCOLOR]
+                  if inCheck(newBoards[-1], t):
+                    newBoards.pop(-1)
             if y<7:
               if board[x+1][y+1][1] == 3-t:
                 if x==6:
@@ -396,6 +417,25 @@ def getPossibleMoves(board, t):
                 newBoards[-1][x][y] = [NOTHING, NOCOLOR]
                 if inCheck(newBoards[-1], t):
                   newBoards.pop(-1)
+            if x == 3:
+              if y<7:
+                if all(board[x][y+1] == [PAWN, BLACK]) and all(board[1][y+1] == [NOTHING, NOCOLOR]) and all(prevBoard[1][y+1] == [PAWN, BLACK]):
+                  newBoards.append(copy.deepcopy(board))
+                  newBoards[-1][x - 1][y + 1] = copy.deepcopy(
+                      newBoards[-1][x][y])
+                  newBoards[-1][x][y] = [NOTHING, NOCOLOR]
+                  newBoards[-1][x][y+1] = [NOTHING, NOCOLOR]
+                  if inCheck(newBoards[-1], t):
+                    newBoards.pop(-1)
+              if y>0:
+                if all(board[x][y-1] == [PAWN, BLACK]) and all(board[1][y-1] == [NOTHING, NOCOLOR]) and all(prevBoard[1][y-1] == [PAWN, BLACK]):
+                  newBoards.append(copy.deepcopy(board))
+                  newBoards[-1][x - 1][y - 1] = copy.deepcopy(
+                      newBoards[-1][x][y])
+                  newBoards[-1][x][y] = [NOTHING, NOCOLOR]
+                  newBoards[-1][x][y-1] = [NOTHING, NOCOLOR]
+                  if inCheck(newBoards[-1], t):
+                    newBoards.pop(-1)
             if y<7:
               if board[x-1][y+1][1] == 3-t:
                 if x==1:
@@ -543,9 +583,11 @@ def getPossibleMoves(board, t):
                   newBoards.pop(-1)
   return newBoards
 
-def algoDecide(board, t,
-               depth):  # Run a recursive algorithm to find the best move
+def algoDecide(board, t, depth):  # Run a recursive algorithm to find the best move
   global boardToEvalAlgo
+  global prevBoard
+  
+  prevBoard2 = copy.deepcopy(prevBoard)
 
   if isCheckmate(board,  t):  # If it's checkmate, return who won and the position
     if t == BLACK:
@@ -571,11 +613,12 @@ def algoDecide(board, t,
   bestMove = max(arr, key=getEval)
 
   # If the move hasn't been stored, store it in the dictionary and the file
-  moveAsTuple = deepTuple(bestMove[1])
   if depth>=algoDepth-1:
-    if moveAsTuple not in boardToEvalAlgo:
-      fileAddData(bestMove[1], bestMove[0])
-      boardToEvalAlgo[moveAsTuple] = bestMove[0]
+    moveAsTuple = deepTuple(bestMove[1])
+    fileAddData(bestMove[1], bestMove[0])
+    boardToEvalAlgo[moveAsTuple] = bestMove[0]
+  
+  prevBoard = copy.deepcopy(prevBoard2)
 
   return bestMove
 
@@ -636,6 +679,9 @@ chessBoard = np.array([
 # Dictionary to store the previous moves
 prevMoves = {}
 
+# Stores the last board position
+prevBoard = copy.deepcopy(chessBoard)
+
 # Reads data from the file to a dictionary storing the evaluation of boards
 dataFileAlgo = open("dataStorageAlgo.txt", "r")
 boardToEvalAlgo = {
@@ -675,24 +721,22 @@ def m(x):
   return " "
 dataFileAlgo = open("dataStorageAlgo.txt", "a")
 print (u"\u001b[47m")
-try:
-  while True:
-    makeMove(algoDecide(chessBoard, turn, algoDepth)[1])
-    print()
-    for i in [chessBoard]:
-        for j in i:
-          print(" , ".join([m(x) for x in j]))
-    if isCheckmate(chessBoard, turn):
-      print(str(3-turn) + " Wins!!")
-      break
-    elif isStalemate(chessBoard, turn):
-      print("Tie!!")
-      break
-    print("{:0.2f}".format(evaluatePos(chessBoard)))
 
-  dataFileAlgo.close()
-except:
-  dataFileAlgo.close()
+while True:
+  makeMove(algoDecide(chessBoard, turn, algoDepth)[1])
+  print()
+  for i in [chessBoard]:
+      for j in i:
+        print(" , ".join([m(x) for x in j]))
+  if isCheckmate(chessBoard, turn):
+    print(str(3-turn) + " Wins!!")
+    break
+  elif isStalemate(chessBoard, turn):
+    print("Tie!!")
+    break
+  print("{:0.2f}".format(evaluatePos(chessBoard)))
+
+dataFileAlgo.close()
 
 exit(1)
 # Runs game below
