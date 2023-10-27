@@ -12,8 +12,18 @@ import numpy as np
 import pygame as pg
 import copy
 import time
+import sys
 
 # Defines functions below
+
+def exit():
+  global dataFileAlgo
+  dataFileAlgo = open("dataStorageAlgo.txt", "w")
+  for i in boardToEvalAlgo:
+    fileAddData(i, boardToEvalAlgo[i])
+  dataFileAlgo.close()
+  sys.exit(1)
+
 def boardFromNums(nums):  # Creates a board from a list of strings
   # Converts the list into a list of ints and reshapes it into a 3D np array
   return np.array(list(map(int, nums))).reshape((8, 8, 2))
@@ -166,6 +176,7 @@ def algoDecide(board, t, depth):  # Run a recursive algorithm to find the best m
   global prevMoves
   global castleShort
   global castleLong
+  global running
 
   if isCheckmate(board,  t):  # If it's checkmate, return who won and the position
     if t == BLACK:
@@ -211,10 +222,17 @@ def algoDecide(board, t, depth):  # Run a recursive algorithm to find the best m
       castleLong[WHITE] = False
       castleShort[WHITE] = False
 
+  for event in pg.event.get():
+    if event.type == pg.QUIT:
+      exit()
+
   # Look at all the moves and check which one is the best move
   getEval = lambda board: board[0]
   if t == BLACK:  # If the turn is black, look for the move with the lowest value
     getEval = lambda board: board[0] * -1
+
+  ####### GET TOP THIRD OF EACH POSSIBLE MOVES INSTEAD OF ALL
+  
   arr = [(algoDecide(i, 3 - t, depth - 1)[0], i) if boardToStr(i) not in prevMoves else (algoDecide(i, 3 - t, depth - 1)[0]*0.5, i)
          for i in getPossibleMoves(board, t)]
   bestMove = max(arr, key=getEval)
@@ -251,13 +269,13 @@ def resetBoard():
   global castleLong
   global castleShort
 
-  algoDepth = 3
+  algoDepth = 2
 
   turn = WHITE
 
   order = {
-    WHITE: PLAYER,
-    BLACK: PLAYER
+    WHITE: ALGO,
+    BLACK: ALGO
   }
 
   chessBoard = np.array([
@@ -660,12 +678,12 @@ dataFileAlgo.close()
 turn = WHITE
 
 # Stores the depth of the algorithm
-algoDepth = 3
+algoDepth = 2
 
 # Stores which color is which player
 order = {
     WHITE: PLAYER,
-    BLACK: PLAYER
+    BLACK: ALGO
 }  # Depending on game configuration, this can change
 
 castleLong = {
@@ -717,12 +735,22 @@ gameStarted = True
 pg.init()
 screen = pg.display.set_mode((WIDTH, HEIGHT))
 pg.display.set_caption("Chess")
+
 running = True
 while running:
+  updateScreenBoard()
+  if isCheckmate(chessBoard, turn):
+    print(str(turn)+" Wins")
+    resetBoard()
+  if isStalemate(chessBoard, turn):
+    print("Tie")
+    resetBoard()
+  if order[turn] == ALGO:
+    makeMove(algoDecide(chessBoard, turn, algoDepth)[1])
   for event in pg.event.get():
     if event.type == pg.QUIT:
       running = False
-    if event.type == pg.MOUSEBUTTONUP:
+    if event.type == pg.MOUSEBUTTONUP and order[turn]==PLAYER:
       if selectedX != -1:
         if coordinateToXY(pg.mouse.get_pos()) in getPossibleCoordinates(chessBoard, selectedX, selectedY, turn):
           index = getPossibleCoordinates(chessBoard, selectedX, selectedY, turn).index(coordinateToXY(pg.mouse.get_pos()))
@@ -733,14 +761,8 @@ while running:
         if chessBoard[newCoordinate[0]][newCoordinate[1]][1]==turn:
           selectedX = newCoordinate[0]
           selectedY = newCoordinate[1]
-  updateScreenBoard()
 
-dataFileAlgo = open("dataStorageAlgo.txt", "w")
-for i in boardToEvalAlgo:
-  fileAddData(i, boardToEvalAlgo[i])
-dataFileAlgo.close()
-
-exit(1)
+exit()
 
 # Open the file to add more data
 def m(x):
