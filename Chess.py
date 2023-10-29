@@ -92,11 +92,11 @@ def evaluatePos(board):  # Uses points to evaulate the position of the board
       
       addVal = val(VALUES[j[0]])*(1.035-abs(x-3.5)/50)*(1.035-abs(y-3.5)/50)
       if j[0] == PAWN:
-        addVal*=(0.005*(x if j[1]==BLACK else 7-x)+0.9625)
+        addVal=val(VALUES[j[0]])*(1.035-abs(y-3.5)/50)*(0.005*(x if j[1]==BLACK else 7-x)+0.9625)
       
       if j[0] != KING:
         sum+=addVal
-  sum *= (1.039-(pointSum(board)-VALUES[KING]*2)/1000)
+  sum *= (1.00039-(pointSum(board)-VALUES[KING]*2)/100000)
   return max(-0.9, min(sum / 200, 0.9))
 
 def pointSum(board):  # Gets the total number of points on the board
@@ -180,9 +180,9 @@ def algoDecide(board, t, depth):  # Run a recursive algorithm to find the best m
 
   if isCheckmate(board,  t):  # If it's checkmate, return who won and the position
     if t == BLACK:
-      return (1, board)
+      return (depth+1, board)
     else:
-      return (-1, board)
+      return (-1*depth-1, board)
   elif isStalemate(board, t):  # If it's stalemate, return the position and a draw
     return (0, board)
   
@@ -225,6 +225,9 @@ def algoDecide(board, t, depth):  # Run a recursive algorithm to find the best m
   for event in pg.event.get():
     if event.type == pg.QUIT:
       exit()
+
+  if depth<algoDepth and boardAsStr in boardToEvalAlgo:
+    return (boardToEvalAlgo[boardAsStr], board)
 
   # Look at all the moves and check which one is the best move
   getEval = lambda board: board[0]
@@ -316,7 +319,7 @@ def getPossiblePositions(board, x, y, t):
     if t==BLACK:
       if board[x+1][y][1] == NOCOLOR:
         if x==6:
-          pawnPromote = [QUEEN, t], [BISHOP, t], [ROOK, t], [KNIGHT, t]
+          pawnPromote = [QUEEN, t], [KNIGHT, t], [BISHOP, t], [ROOK, t]
           for i in pawnPromote:
             newBoards.append(copy.deepcopy(board))
             newBoards[-1][x + 1][y] = copy.deepcopy(i)
@@ -370,15 +373,15 @@ def getPossiblePositions(board, x, y, t):
       if y<7:
         if board[x+1][y+1][1] == 3-t:
           if x==6:
-            pawnPromote = [QUEEN, t], [BISHOP, t], [ROOK, t], [KNIGHT, t]
+            pawnPromote = [QUEEN, t], [KNIGHT, t], [BISHOP, t], [ROOK, t]
             for i in pawnPromote:
               newBoards.append(copy.deepcopy(board))
               newBoards[-1][x + 1][y + 1] = copy.deepcopy(i)
               newBoards[-1][x][y] = [NOTHING, NOCOLOR]
               if inCheck(newBoards[-1], t):
                 newBoards.pop(-1)
-            else:
-              newCoordinates.append((x+1, y+1))
+              else:
+                newCoordinates.append((x+1, y+1))
           else:
             newBoards.append(copy.deepcopy(board))
             newBoards[-1][x + 1][y + 1] = copy.deepcopy(
@@ -391,7 +394,7 @@ def getPossiblePositions(board, x, y, t):
       if y>0:
         if board[x+1][y-1][1] == 3-t:
           if x==6:
-            pawnPromote = [QUEEN, t], [BISHOP, t], [ROOK, t], [KNIGHT, t]
+            pawnPromote = [QUEEN, t], [KNIGHT, t], [BISHOP, t], [ROOK, t]
             for i in pawnPromote:
               newBoards.append(copy.deepcopy(board))
               newBoards[-1][x + 1][y - 1] = copy.deepcopy(i)
@@ -412,7 +415,7 @@ def getPossiblePositions(board, x, y, t):
     else:
       if board[x-1][y][1] == NOCOLOR:
         if x==1:
-          pawnPromote = [QUEEN, t], [BISHOP, t], [ROOK, t], [KNIGHT, t]
+          pawnPromote = [QUEEN, t], [KNIGHT, t], [BISHOP, t], [ROOK, t]
           for i in pawnPromote:
             newBoards.append(copy.deepcopy(board))
             newBoards[-1][x - 1][y] = copy.deepcopy(i)
@@ -466,15 +469,15 @@ def getPossiblePositions(board, x, y, t):
       if y<7:
         if board[x-1][y+1][1] == 3-t:
           if x==1:
-            pawnPromote = [QUEEN, t], [BISHOP, t], [ROOK, t], [KNIGHT, t]
+            pawnPromote = [QUEEN, t], [KNIGHT, t], [BISHOP, t], [ROOK, t]
             for i in pawnPromote:
               newBoards.append(copy.deepcopy(board))
               newBoards[-1][x - 1][y + 1] = copy.deepcopy(i)
               newBoards[-1][x][y] = [NOTHING, NOCOLOR]
               if inCheck(newBoards[-1], t):
                 newBoards.pop(-1)
-            else:
-              newCoordinates.append((x-1, y+1))
+              else:
+                newCoordinates.append((x-1, y+1))
           else:
             newBoards.append(copy.deepcopy(board))
             newBoards[-1][x - 1][y + 1] = copy.deepcopy(
@@ -487,15 +490,15 @@ def getPossiblePositions(board, x, y, t):
       if y>0:
         if board[x-1][y-1][1] == 3-t:
           if x==1:
-            pawnPromote = [QUEEN, t], [BISHOP, t], [ROOK, t], [KNIGHT, t]
+            pawnPromote = [QUEEN, t], [KNIGHT, t], [BISHOP, t], [ROOK, t]
             for i in pawnPromote:
               newBoards.append(copy.deepcopy(board))
               newBoards[-1][x - 1][y - 1] = copy.deepcopy(i)
               newBoards[-1][x][y] = [NOTHING, NOCOLOR]
               if inCheck(newBoards[-1], t):
                 newBoards.pop(-1)
-            else:
-              newCoordinates.append((x-1, y-1))
+              else:
+                newCoordinates.append((x-1, y-1))
           else:
             newBoards.append(copy.deepcopy(board))
             newBoards[-1][x - 1][y - 1] = copy.deepcopy(
@@ -540,7 +543,7 @@ def getPossiblePositions(board, x, y, t):
   row = 0
   if t==WHITE:
     row = 7
-  if castleLong[t] and not inCheck(board, t) and all(board[row][1]==[NOTHING, NOCOLOR]) and all(board[row][2]==[NOTHING, NOCOLOR]) and all(board[row][3]==[NOTHING, NOCOLOR]):
+  if castleLong[t] and board[x][y][0] == KING and not inCheck(board, t) and all(board[row][1]==[NOTHING, NOCOLOR]) and all(board[row][2]==[NOTHING, NOCOLOR]) and all(board[row][3]==[NOTHING, NOCOLOR]):
     copyBoard = copy.deepcopy(board)
     copyBoard[row][2]=np.array([KING, t])
     copyBoard[row][4]=np.array([NOTHING, NOCOLOR])
@@ -557,7 +560,7 @@ def getPossiblePositions(board, x, y, t):
         newBoards.append(copy.deepcopy(copyBoard))
         newCoordinates.append((row, 2))
 
-  if castleShort[t] and not inCheck(board, t) and all(board[row][5]==[NOTHING, NOCOLOR]) and all(board[row][6]==[NOTHING, NOCOLOR]):
+  if castleShort[t] and board[x][y][0] == KING and not inCheck(board, t) and all(board[row][5]==[NOTHING, NOCOLOR]) and all(board[row][6]==[NOTHING, NOCOLOR]):
     copyBoard = copy.deepcopy(board)
     copyBoard[row][6]=np.array([KING, t])
     copyBoard[row][4]=np.array([NOTHING, NOCOLOR])
@@ -607,8 +610,6 @@ def updateScreenBoard():
       image = pg.image.load("images\\select.png").convert_alpha()
       image = pg.transform.scale(image, (70, 70))
       screen.blit(image, (90*y+10, 90*x+10))
-
-  pg.display.flip()
 
 def coordinateToXY(clickTuple):
   y = int(clickTuple[0]/90)
@@ -683,7 +684,7 @@ algoDepth = 2
 # Stores which color is which player
 order = {
     WHITE: PLAYER,
-    BLACK: ALGO
+    BLACK: PLAYER
 }  # Depending on game configuration, this can change
 
 castleLong = {
@@ -738,7 +739,9 @@ pg.display.set_caption("Chess")
 
 running = True
 while running:
+  boardFlip = False
   updateScreenBoard()
+  pg.display.flip()
   if isCheckmate(chessBoard, turn):
     print(str(turn)+" Wins")
     resetBoard()
@@ -753,8 +756,30 @@ while running:
     if event.type == pg.MOUSEBUTTONUP and order[turn]==PLAYER:
       if selectedX != -1:
         if coordinateToXY(pg.mouse.get_pos()) in getPossibleCoordinates(chessBoard, selectedX, selectedY, turn):
-          index = getPossibleCoordinates(chessBoard, selectedX, selectedY, turn).index(coordinateToXY(pg.mouse.get_pos()))
-          makeMove(getPieceMoves(chessBoard, selectedX, selectedY, turn)[index])
+          if getPossibleCoordinates(chessBoard, selectedX, selectedY, turn).count(coordinateToXY(pg.mouse.get_pos()))>1:
+            updateScreenBoard()
+            image = pg.image.load("images\\"+str(turn)+"promote.png").convert()
+            targetPos = coordinateToXY(pg.mouse.get_pos())[1]
+            screen.blit(image, (coordinateToXY(pg.mouse.get_pos())[1]*90, 0))
+            pg.display.flip()
+            index = getPossibleCoordinates(chessBoard, selectedX, selectedY, turn).index(coordinateToXY(pg.mouse.get_pos()))
+            run = True
+            # time.sleep(0.01)
+            while run:
+              for event in pg.event.get():
+                if event.type == pg.QUIT:
+                  exit()
+                if event.type == pg.MOUSEBUTTONUP:
+                  if coordinateToXY(pg.mouse.get_pos())[1]==targetPos:
+                    clickX = coordinateToXY(pg.mouse.get_pos())[0]
+                    if boardFlip:
+                      clickX = 7-clickX
+                    if clickX<4:
+                      makeMove(getPieceMoves(chessBoard, selectedX, selectedY, turn)[index+clickX])
+                  run = False
+          else:
+            index = getPossibleCoordinates(chessBoard, selectedX, selectedY, turn).index(coordinateToXY(pg.mouse.get_pos()))
+            makeMove(getPieceMoves(chessBoard, selectedX, selectedY, turn)[index])
         selectedX, selectedY = -1, -1
       else:
         newCoordinate = coordinateToXY(pg.mouse.get_pos())
@@ -763,87 +788,3 @@ while running:
           selectedY = newCoordinate[1]
 
 exit()
-
-# Open the file to add more data
-def m(x):
-  if x[1]==WHITE:
-    if x[0]==KING:
-      return "♔"
-    if x[0]==QUEEN:
-      return "♕"
-    if x[0]==ROOK:
-      return "♖"
-    if x[0]==BISHOP:
-      return "♗"
-    if x[0]==KNIGHT:
-      return "♘"
-    if x[0]==PAWN:
-      return "♙"
-  elif x[1]==BLACK:
-    if x[0]==KING:
-      return "♚"
-    if x[0]==QUEEN:
-      return "♛"
-    if x[0]==ROOK:
-      return "♜"
-    if x[0]==BISHOP:
-      return "♝"
-    if x[0]==KNIGHT:
-      return "♞"
-    if x[0]==PAWN:
-      return "♟︎"
-  return " "
-
-for lasd in range(1):
-  resetBoard()
-  moveCount = 0
-  print (u"\u001b[47m")
-  while True:
-    moveCount+=1
-    makeMove(algoDecide(chessBoard, turn, algoDepth)[1])
-    print()
-    for i in [chessBoard]:
-        for j in i:
-          print(" , ".join([m(x) for x in j]))
-    if isCheckmate(chessBoard, turn):
-      print(str(3-turn) + " Wins!!")
-      break
-    elif isStalemate(chessBoard, turn):
-      print("Tie!!")
-      break
-    print("{:0.2f}".format(evaluatePos(chessBoard)*10))
-    print(moveCount)
-
-  dataFileAlgo = open("dataStorageAlgo.txt", "w")
-  for i in boardToEvalAlgo:
-    fileAddData(i, boardToEvalAlgo[i])
-  dataFileAlgo.close()
-
-
-# Runs game below
-
-pg.init()
-screen = pg.display.set_mode((WIDTH, HEIGHT))
-
-pg.display.set_caption("Chess")
-
-while True:
-
-  if order[turn] == PLAYER:
-    print("Player's Turn")
-  elif order[turn] == ALGO:
-    makeMove(algoDecide(chessBoard, turn, 3)[1])
-    print("Algorithm's Turn")
-  else:
-    makeMove(mlDecide(chessBoard, turn, 3))
-    print("ML model's Turn")
-  if isCheckmate(chessBoard, turn):
-    print(str(turn) + " Wins!!")
-    break
-  elif isStalemate(chessBoard, turn):
-    print("Tie!!")
-    break
-
-  print("Update Screen")
-
-dataFileAlgo.close()
