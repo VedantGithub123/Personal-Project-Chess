@@ -16,50 +16,50 @@ import sys
 
 # Defines functions below
 
-def exit():
+def exit(): # Exits the program after saving the file, used when exiting during algorithm calculations
+  # Writes each board to evaluation to the file
   global dataFileAlgo
   dataFileAlgo = open("dataStorageAlgo.txt", "w")
   for i in boardToEvalAlgo:
     fileAddData(i, boardToEvalAlgo[i])
   dataFileAlgo.close()
+  # Exits the program
   sys.exit(1)
 
 def boardFromNums(nums):  # Creates a board from a list of strings
-  # Converts the list into a list of ints and reshapes it into a 3D np array
+  # Converts the list into a list of ints and reshapes it into a 3D numpy array
   return np.array(list(map(int, nums))).reshape((8, 8, 2))
 
-def boardToStr(board):
+def boardToStr(board): # Converts the board into a string
   return " ".join(map(str, board.flatten()))
 
 def fileAddData(board, eval):  # Writes the board to a file in a certain format
-  # Flattens the board and joins it with a " " between the different values
+  # Writes the board to the evaluation in the file
   dataFileAlgo.write(board + " | " + str(eval) + "\n")
 
 def makeMove(move):  # Changes the chessboard and swaps the turn
   # Says we are changing the global vairables instead of new ones in a smaller scope
-  global chessBoard
-  global turn
-  global prevBoard
-  global prevCaptureLen
-  global castleShort
-  global castleLong
-  global boardFlip
+  global chessBoard, turn, prevBoard, prevCaptureLen, castleShort, castleLong, boardFlip
 
-  turn = 3 - turn
+  turn = 3 - turn # Flips the turn
 
+  # Updates the amount of times the previous board appears
   boardAsStr = boardToStr(chessBoard)
   if boardAsStr in prevMoves:
     prevMoves[boardAsStr] += 1
   else:
     prevMoves[boardAsStr] = 1
 
-  prevCaptureLen+=1
+  prevCaptureLen += 1 # Adds one to the amount of turns since the last capture
 
+  # Resets the previous capture length if a piece was captured or promoted
   if pointSum(move)!=pointSum(chessBoard):
     prevCaptureLen = 0
 
+  # Sets the previous board to the current board
   prevBoard = copy.deepcopy(chessBoard)
 
+  # Checks if it is still valid to castle
   for col, row in [[WHITE, 7], [BLACK, 0]]:
     if not all(move[row][0]==[ROOK, col]):
       castleLong[col] = False
@@ -69,6 +69,7 @@ def makeMove(move):  # Changes the chessboard and swaps the turn
         castleLong[col] = False
         castleShort[col] = False
 
+  # Checks if the board display should be flipped
   if order[BLACK]!=PLAYER:
     boardFlip = False
   elif order[WHITE]!=PLAYER:
@@ -76,13 +77,14 @@ def makeMove(move):  # Changes the chessboard and swaps the turn
   else:
     boardFlip = True if turn==BLACK else False
   
-  chessBoard = copy.deepcopy(move)
+  chessBoard = copy.deepcopy(move) # Sets the chessboard to the new board
   
-def evaluatePos(board):  # Uses points to evaulate the position of the board
-  # Adds together the different point values, subtracts if black's pieces
+def evaluatePos(board):  # Uses points and bias to evaulate the position of the board
   boardAsStr = boardToStr(board)
   if boardAsStr in boardToEvalAlgo:  # If the algo already calculated it, use that value
     return boardToEvalAlgo[boardAsStr]
+  
+  # Adds together the different point values, subtracts if black's pieces
   sum = 0
   for x, i in enumerate(board):
     for y, j in enumerate(i):
@@ -90,14 +92,19 @@ def evaluatePos(board):  # Uses points to evaulate the position of the board
       if j[1] == BLACK:
         val = lambda x: -1*x
       
-      addVal = val(VALUES[j[0]])*(1.035-abs(x-3.5)/50)*(1.035-abs(y-3.5)/50)
+      addVal = val(VALUES[j[0]])*(1.035-abs(x-3.5)/50)*(1.035-abs(y-3.5)/50) # Bias for the center of the board
+
+      # Only bias for the y center if it's a pawn
       if j[0] == PAWN:
         addVal=val(VALUES[j[0]])*(1.035-abs(y-3.5)/50)*(0.005*(x if j[1]==BLACK else 7-x)+0.9625)
       
+      # King should not have a bias
       if j[0] != KING:
         sum+=addVal
-  sum *= (1.00039-(pointSum(board)-VALUES[KING]*2)/100000)
-  return max(-0.9, min(sum / 200, 0.9))
+
+  sum *= (1.00039-(pointSum(board)-VALUES[KING]*2)/100000) # Bias for trading pieces if you are winning
+
+  return max(-0.9, min(sum / 200, 0.9)) # Limit from -0.9 to 0.9
 
 def pointSum(board):  # Gets the total number of points on the board
   # Adds together the different point values
@@ -117,36 +124,37 @@ def inCheck(board, t):  # Function to check if the king in in check
         for moves, piece in [[rookMoves, ROOK], [bishopMoves, BISHOP]]:
           for line in moves:
             for i in line:
-              if x + i[0] <= 7 and x + i[0] >= 0 and y + i[1] <= 7 and y + i[1] >= 0:
-                if board[x + i[0]][y + i[1]][1] != t and board[x + i[0]][y + i[1]][0] in [piece, QUEEN]:
+              if x + i[0] <= 7 and x + i[0] >= 0 and y + i[1] <= 7 and y + i[1] >= 0: # Checks if it is a valid coordinate
+                if board[x + i[0]][y + i[1]][1] != t and board[x + i[0]][y + i[1]][0] in [piece, QUEEN]: # Check if the piece is a valid piece
                   return True
-                elif board[x + i[0]][y + i[1]][0] != NOTHING:
+                elif board[x + i[0]][y + i[1]][0] != NOTHING: # Break this line when a piece is seen
                   break
         
         # Checks if a knight or king is attacking the king
         for moves, piece in [[knightMoves, KNIGHT], [kingMoves, KING]]:
           for i in moves:
-            if x+i[0]>=0 and x+i[0]<8 and y+i[1]>=0 and y+i[1]<8:
-              if board[x+i[0]][y+i[1]][1]==3-t and board[x+i[0]][y+i[1]][0] == piece:
+            if x+i[0]>=0 and x+i[0]<8 and y+i[1]>=0 and y+i[1]<8: # Checks if it is a valid coordinate
+              if board[x+i[0]][y+i[1]][1]==3-t and board[x+i[0]][y+i[1]][0] == piece: # Check if the piece is a valid piece
                 return True
 
         # Checks if a pawn is attacking the king
         xAdd = (1 if t==BLACK else -1)
         for yAdd in [1, -1]:
-          if x+xAdd>=0 and x+xAdd<=7 and y+yAdd<=7 and y+yAdd>=0:
-            if board[x+xAdd][y+yAdd][0] == PAWN and board[x+xAdd][y+yAdd][1] == 3-t:
+          if x+xAdd>=0 and x+xAdd<=7 and y+yAdd<=7 and y+yAdd>=0: # Checks if it is a valid position
+            if board[x+xAdd][y+yAdd][0] == PAWN and board[x+xAdd][y+yAdd][1] == 3-t: # Checks if there is a pawn of the opposite color
               return True
             
         # If there is nothing pointing at the king, returns False
         return False
 
-def isCheckmate(board, t):
+def isCheckmate(board, t): # Checks for checkmate
   # If the king is in check and there are no moves, return True, else False
   return inCheck(board, t) and len(getPossibleMoves(board, t)) == 0
 
-def isStalemate(board, t):
+def isStalemate(board, t): # Checks for stalemate
   # Checks if the king is not in check and there are no moves
   # Or if the same situation arose 3 times
+  # Or if it was 50 moves since the last capture
   # Or there are only 2 kings
   # Or only 2 kings and a minor piece
   return ((not inCheck(board, t) and len(getPossibleMoves(board, t)) == 0)
@@ -156,17 +164,20 @@ def isStalemate(board, t):
           or (pointSum(board) == VALUES[KING] + VALUES[KING] + VALUES[KNIGHT] and all(i[0]!=PAWN for i in board)) # Same as KING+KING+BISHOP
           )
 
-def getPossibleMoves(board, t):
+def getPossibleMoves(board, t): # Gets possible moves
+  # Gets the possible positions for each piece on the board and gets the resulting boards
   newBoards = []
   for y in range(8):
     for x in range(8):
       newBoards += [i[1] for i in getPossiblePositions(board, x, y, t)]
   return newBoards
 
-def getPossibleCoordinates(board, x, y, t):
+def getPossibleCoordinates(board, x, y, t): # Gets the possible coordinates a piece can move to
+  # Returns the coordinate for each (coordinate, move) in the possible positions the piece can go to
   return [i[0] for i in getPossiblePositions(board, x, y, t)]
 
-def getPieceMoves(board, x, y, t):
+def getPieceMoves(board, x, y, t): # Gets the boards the piece can go to
+  # Returns the move for each (coordinate, move) in the possible positions the piece can go to
   return [i[1] for i in getPossiblePositions(board, x, y, t)]
 
 def algoDecide(board, t, depth):  # Run a recursive algorithm to find the best move
@@ -233,8 +244,6 @@ def algoDecide(board, t, depth):  # Run a recursive algorithm to find the best m
   getEval = lambda board: board[0]
   if t == BLACK:  # If the turn is black, look for the move with the lowest value
     getEval = lambda board: board[0] * -1
-
-  ####### GET TOP THIRD OF EACH POSSIBLE MOVES INSTEAD OF ALL
   
   arr = [(algoDecide(i, 3 - t, depth - 1)[0], i) if boardToStr(i) not in prevMoves else (algoDecide(i, 3 - t, depth - 1)[0]*0.5, i)
          for i in getPossibleMoves(board, t)]
@@ -247,7 +256,7 @@ def algoDecide(board, t, depth):  # Run a recursive algorithm to find the best m
   prevBoard = copy.deepcopy(prevBoard2)
 
   # If the move hasn't been stored, store it in the dictionary and the file
-  if depth>algoDepth-1:
+  if depth >= 3:
     moveAsStr = boardToStr(bestMove[1])
     boardToEvalAlgo[moveAsStr] = bestMove[0]
 
@@ -261,26 +270,21 @@ def mlDecide(board, t, depth):  # Runs the ML algorithm to generate the move
     return mlDecision
   return algoDecide(board, t, depth)[1]
 
-def resetBoard():
-  global algoDepth
-  global turn
-  global order
-  global chessBoard
-  global prevMoves
-  global prevBoard
-  global prevCaptureLen
-  global castleLong
-  global castleShort
+def resetBoard(): # Resets all the variables to the starting position
+  # Defines them as global so they aren't made locally
+  global algoDepth, turn, order, chessBoard, prevMoves, prevBoard, prevCaptureLen, castleLong, castleShort
 
-  algoDepth = 2
+  algoDepth = 3 # Resets the algorithm  depth
 
-  turn = WHITE
+  turn = WHITE # Resets the turn
 
+  # Resets the order
   order = {
     WHITE: ALGO,
     BLACK: ALGO
   }
 
+  # Resets the chess board
   chessBoard = np.array([
       [np.array([piece, BLACK]) for piece in [4, 3, 2, 5, 6, 2, 3, 4]],
       [np.array([PAWN, BLACK])] * 8,
@@ -292,17 +296,20 @@ def resetBoard():
       [np.array([piece, WHITE]) for piece in [4, 3, 2, 5, 6, 2, 3, 4]],
   ])
 
+  # Clears the previous moves
   prevMoves = {}
 
+  # Resets the previous board
   prevBoard = copy.deepcopy(chessBoard)
 
+  # Resets the previous capture length
   prevCaptureLen = 0
 
+  # Resets the castling flags
   castleLong = {
     WHITE: True,
     BLACK: True
   }
-
   castleShort = {
     WHITE: True,
     BLACK: True
@@ -611,7 +618,7 @@ def updateScreenBoard():
       image = pg.transform.scale(image, (70, 70))
       screen.blit(image, (90*y+10, 90*x+10))
 
-def coordinateToXY(clickTuple):
+def coordinateToXY(clickTuple): # Converts the click into an xy coordinate of the chessboard
   y = int(clickTuple[0]/90)
   x = int(clickTuple[1]/90)
   if x<8 and y<8:
@@ -679,12 +686,12 @@ dataFileAlgo.close()
 turn = WHITE
 
 # Stores the depth of the algorithm
-algoDepth = 2
+algoDepth = 3
 
 # Stores which color is which player
 order = {
     WHITE: PLAYER,
-    BLACK: PLAYER
+    BLACK: ALGO
 }  # Depending on game configuration, this can change
 
 castleLong = {
@@ -739,7 +746,6 @@ pg.display.set_caption("Chess")
 
 running = True
 while running:
-  boardFlip = False
   updateScreenBoard()
   pg.display.flip()
   if isCheckmate(chessBoard, turn):
@@ -764,7 +770,6 @@ while running:
             pg.display.flip()
             index = getPossibleCoordinates(chessBoard, selectedX, selectedY, turn).index(coordinateToXY(pg.mouse.get_pos()))
             run = True
-            # time.sleep(0.01)
             while run:
               for event in pg.event.get():
                 if event.type == pg.QUIT:
