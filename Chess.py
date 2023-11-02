@@ -92,11 +92,11 @@ def evaluatePos(board):  # Uses points and bias to evaulate the position of the 
       if j[1] == BLACK:
         val = lambda x: -1*x
       
-      addVal = val(VALUES[j[0]])*(1.035-abs(x-3.5)/50)*(1.035-abs(y-3.5)/50) # Bias for the center of the board
+      addVal = val(VALUES[j[0]])*(1.0175-abs(x-3.5)/100)*(1.035-abs(y-3.5)/50) # Bias for the center of the board
 
       # Only bias for the y center if it's a pawn
       if j[0] == PAWN:
-        addVal=val(VALUES[j[0]])*(1.035-abs(y-3.5)/50)*(0.005*(x if j[1]==BLACK else 7-x)+0.9625)
+        addVal=val(VALUES[j[0]])*(1.0175-abs(y-3.5)/100)*(0.005*(x if j[1]==BLACK else 7-x)+0.9625)
       
       # King should not have a bias
       if j[0] != KING:
@@ -237,7 +237,7 @@ def algoDecide(board, t, depth):  # Run a recursive algorithm to find the best m
     if event.type == pg.QUIT:
       exit()
 
-  if depth<algoDepth and boardAsStr in boardToEvalAlgo:
+  if depth<algoDepth[turn] and boardAsStr in boardToEvalAlgo:
     return (boardToEvalAlgo[boardAsStr], board)
 
   # Look at all the moves and check which one is the best move
@@ -272,17 +272,9 @@ def mlDecide(board, t, depth):  # Runs the ML algorithm to generate the move
 
 def resetBoard(): # Resets all the variables to the starting position
   # Defines them as global so they aren't made locally
-  global algoDepth, turn, order, chessBoard, prevMoves, prevBoard, prevCaptureLen, castleLong, castleShort
-
-  algoDepth = 3 # Resets the algorithm  depth
+  global turn, chessBoard, prevMoves, prevBoard, prevCaptureLen, castleLong, castleShort, gameStarted
 
   turn = WHITE # Resets the turn
-
-  # Resets the order
-  order = {
-    WHITE: ALGO,
-    BLACK: ALGO
-  }
 
   # Resets the chess board
   chessBoard = np.array([
@@ -314,6 +306,8 @@ def resetBoard(): # Resets all the variables to the starting position
     WHITE: True,
     BLACK: True
   }
+
+  gameStarted = False
 
 def getPossiblePositions(board, x, y, t):
   newBoards = []
@@ -587,41 +581,92 @@ def getPossiblePositions(board, x, y, t):
   return list(zip(newCoordinates, newBoards))
 
 def updateScreenBoard():
-  screen.fill((83, 92, 86))
-
-  image = pg.image.load("images\\chessboard.jpg").convert()
-  image = pg.transform.scale(image, (720, 720))
+  image = pg.image.load("images\\background.png").convert_alpha()
   screen.blit(image, (0, 0))
 
-  image = pg.image.load("images\\title.png").convert_alpha()
-  image = pg.transform.scale(image, (612, 408))
-  screen.blit(image, (694, -120))
-
-  for x, v in enumerate(chessBoard[::(-1 if boardFlip else 1)]):
-    for y, w in enumerate(v[::(-1 if boardFlip else 1)]):
-      if any(w!=[0, 0]):
-        image = pg.image.load("images\\"+"".join([str(i) for i in w])+".svg")
-        screen.blit(image, (90*y, 90*x))
+  if coordinateToXY(pg.mouse.get_pos())[0] != -1 and order[turn] == PLAYER and gameStarted:
+    image = pg.image.load("images\\hover.png").convert_alpha()
+    if boardFlip:
+      screen.blit(image, (88*(7-coordinateToXY(pg.mouse.get_pos())[1])+8, 88*(7-coordinateToXY(pg.mouse.get_pos())[0])+8))
+    else:
+      screen.blit(image, (88*(coordinateToXY(pg.mouse.get_pos())[1])+8, 88*(coordinateToXY(pg.mouse.get_pos())[0])+8))
   
   if selectedX != -1 and selectedY != -1 and chessBoard[selectedX][selectedY][1] == turn and order[turn]==PLAYER and gameStarted:
     image = pg.image.load("images\\select.png").convert_alpha()
-    image = pg.transform.scale(image, (90, 90))
     if boardFlip:
-      screen.blit(image, (90*(7-selectedY), 90*(7-selectedX)))
+      screen.blit(image, (88*(7-selectedY)+8, 88*(7-selectedX)+8))
     else:
-      screen.blit(image, (90*(selectedY), 90*(selectedX)))
-    for x, y in getPossibleCoordinates(chessBoard, selectedX, selectedY, turn):
+      screen.blit(image, (88*(selectedY)+8, 88*(selectedX)+8))
+    for x, y in set(getPossibleCoordinates(chessBoard, selectedX, selectedY, turn)):
       if boardFlip:
         x = 7-x
         y = 7-y
-      image = pg.image.load("images\\select.png").convert_alpha()
-      image = pg.transform.scale(image, (70, 70))
-      screen.blit(image, (90*y+10, 90*x+10))
+      image = pg.image.load("images\\options.png").convert_alpha()
+      screen.blit(image, (88*y+8, 88*x+8))
+    
+  for x, v in enumerate(chessBoard[::(-1 if boardFlip else 1)]):
+    for y, w in enumerate(v[::(-1 if boardFlip else 1)]):
+      if any(w!=prevBoard[(7-x if boardFlip else x)][(7-y if boardFlip else y)]):
+        image = pg.image.load("images\\select.png")
+        screen.blit(image, (88*y+8, 88*x+8))
+        pass
+  
+  for x, v in enumerate(chessBoard[::(-1 if boardFlip else 1)]):
+    for y, w in enumerate(v[::(-1 if boardFlip else 1)]):
+      if any(w!=[0, 0]):
+        image = pg.image.load("images\\"+"".join([str(i) for i in w])+".png")
+        screen.blit(image, (88*y+18, 88*x+18))
+
+  if gameStarted:
+    image = pg.image.load("images\\current-turn.png")
+    screen.blit(image, ((877 if turn==WHITE else 1003), 658))
+  else:
+    if pg.Rect(865, 350, 100, 40).collidepoint(pg.mouse.get_pos()):
+      image = pg.image.load("images\\white-down.png")
+      screen.blit(image, (865, 350))
+    if pg.Rect(1015, 350, 100, 40).collidepoint(pg.mouse.get_pos()):
+      image = pg.image.load("images\\black-down.png")
+      screen.blit(image, (1015, 350))
+    if pg.Rect(865, 200, 100, 40).collidepoint(pg.mouse.get_pos()):
+      image = pg.image.load("images\\white-up.png")
+      screen.blit(image, (865, 200))
+    if pg.Rect(1015, 200, 100, 40).collidepoint(pg.mouse.get_pos()):
+      image = pg.image.load("images\\black-up.png")
+      screen.blit(image, (1015, 200))
+
+    if pg.Rect(840, 400, 300, 78).collidepoint(pg.mouse.get_pos()):
+      image = pg.image.load("images\\start.png")
+      screen.blit(image, (840, 400))
+  text = "PLAYER"
+  size = 32
+  if order[WHITE] == ML:
+    text = "AI"
+  elif order[WHITE] == ALGO:
+    text = "COMPUTER #"+str(algoDepth[WHITE])
+    size = 23
+  text = pg.font.SysFont(None, size).render(text, True, (0,0,0))
+  textRect = text.get_rect(center=(915, 295))
+  screen.blit(text, textRect)
+
+  text = "PLAYER"
+  size = 32
+  if order[BLACK] == ML:
+    text = "AI"
+  elif order[BLACK] == ALGO:
+    text = "COMPUTER #"+str(algoDepth[BLACK])
+    size = 23
+  text = pg.font.SysFont(None, size).render(text, True, (255,255,255))
+  textRect = text.get_rect(center=(1065, 295))
+  screen.blit(text, textRect)
 
 def coordinateToXY(clickTuple): # Converts the click into an xy coordinate of the chessboard
-  y = int(clickTuple[0]/90)
-  x = int(clickTuple[1]/90)
-  if x<8 and y<8:
+  y = int(clickTuple[0])
+  y-=8
+  y = y//88
+  x = int(clickTuple[1])
+  x-=8
+  x = x//88
+  if x<8 and x>=0 and y<8 and y>=0:
     if boardFlip:
       return (7-x, 7-y)
     return (x, y)
@@ -686,12 +731,15 @@ dataFileAlgo.close()
 turn = WHITE
 
 # Stores the depth of the algorithm
-algoDepth = 3
+algoDepth = {
+  WHITE: 3, 
+  BLACK: 3
+}
 
 # Stores which color is which player
 order = {
     WHITE: PLAYER,
-    BLACK: ALGO
+    BLACK: PLAYER
 }  # Depending on game configuration, this can change
 
 castleLong = {
@@ -737,7 +785,12 @@ selectedY = -1
 boardFlip = False
 
 # Variable to store if the game has started
-gameStarted = True
+gameStarted = False
+
+playerOptions = [[PLAYER, 0], [ALGO, 1], [ALGO, 2], [ALGO, 3], [ML, 0]]
+
+blackSelection = 0
+whiteSelection = 0
 
 
 pg.init()
@@ -748,48 +801,72 @@ running = True
 while running:
   updateScreenBoard()
   pg.display.flip()
-  if isCheckmate(chessBoard, turn):
-    print(str(turn)+" Wins")
-    resetBoard()
-  if isStalemate(chessBoard, turn):
-    print("Tie")
-    resetBoard()
-  if order[turn] == ALGO:
-    makeMove(algoDecide(chessBoard, turn, algoDepth)[1])
-  for event in pg.event.get():
-    if event.type == pg.QUIT:
-      running = False
-    if event.type == pg.MOUSEBUTTONUP and order[turn]==PLAYER:
-      if selectedX != -1:
-        if coordinateToXY(pg.mouse.get_pos()) in getPossibleCoordinates(chessBoard, selectedX, selectedY, turn):
-          if getPossibleCoordinates(chessBoard, selectedX, selectedY, turn).count(coordinateToXY(pg.mouse.get_pos()))>1:
-            updateScreenBoard()
-            image = pg.image.load("images\\"+str(turn)+"promote.png").convert()
-            targetPos = coordinateToXY(pg.mouse.get_pos())[1]
-            screen.blit(image, (coordinateToXY(pg.mouse.get_pos())[1]*90, 0))
-            pg.display.flip()
-            index = getPossibleCoordinates(chessBoard, selectedX, selectedY, turn).index(coordinateToXY(pg.mouse.get_pos()))
-            run = True
-            while run:
-              for event in pg.event.get():
-                if event.type == pg.QUIT:
-                  exit()
-                if event.type == pg.MOUSEBUTTONUP:
-                  if coordinateToXY(pg.mouse.get_pos())[1]==targetPos:
-                    clickX = coordinateToXY(pg.mouse.get_pos())[0]
-                    if boardFlip:
-                      clickX = 7-clickX
-                    if clickX<4:
-                      makeMove(getPieceMoves(chessBoard, selectedX, selectedY, turn)[index+clickX])
-                  run = False
-          else:
-            index = getPossibleCoordinates(chessBoard, selectedX, selectedY, turn).index(coordinateToXY(pg.mouse.get_pos()))
-            makeMove(getPieceMoves(chessBoard, selectedX, selectedY, turn)[index])
-        selectedX, selectedY = -1, -1
-      else:
-        newCoordinate = coordinateToXY(pg.mouse.get_pos())
-        if chessBoard[newCoordinate[0]][newCoordinate[1]][1]==turn:
-          selectedX = newCoordinate[0]
-          selectedY = newCoordinate[1]
-
+  if gameStarted:
+    if isCheckmate(chessBoard, turn):
+      print(str(3-turn)+" Wins")
+      resetBoard()
+      continue
+    if isStalemate(chessBoard, turn):
+      print("Tie")
+      resetBoard()
+      continue
+    if order[turn] == ALGO:
+      makeMove(algoDecide(chessBoard, turn, algoDepth[turn])[1])
+    for event in pg.event.get():
+      if event.type == pg.QUIT:
+        running = False
+      if event.type == pg.MOUSEBUTTONUP and order[turn]==PLAYER:
+        if selectedX != -1:
+          if coordinateToXY(pg.mouse.get_pos()) in getPossibleCoordinates(chessBoard, selectedX, selectedY, turn):
+            if getPossibleCoordinates(chessBoard, selectedX, selectedY, turn).count(coordinateToXY(pg.mouse.get_pos()))>1:
+              updateScreenBoard()
+              image = pg.image.load("images\\"+str(turn)+"-promote.png")
+              targetPos = coordinateToXY(pg.mouse.get_pos())[1]
+              screen.blit(image, ((7-targetPos if boardFlip else targetPos)*88+8, 8))
+              pg.display.flip()
+              index = getPossibleCoordinates(chessBoard, selectedX, selectedY, turn).index(coordinateToXY(pg.mouse.get_pos()))
+              run = True
+              while run:
+                for event in pg.event.get():
+                  if event.type == pg.QUIT:
+                    exit()
+                  if event.type == pg.MOUSEBUTTONUP:
+                    if coordinateToXY(pg.mouse.get_pos())[1]==targetPos:
+                      clickX = coordinateToXY(pg.mouse.get_pos())[0]
+                      if boardFlip:
+                        clickX = 7-clickX
+                      if clickX<4:
+                        makeMove(getPieceMoves(chessBoard, selectedX, selectedY, turn)[index+clickX])
+                    run = False
+            else:
+              index = getPossibleCoordinates(chessBoard, selectedX, selectedY, turn).index(coordinateToXY(pg.mouse.get_pos()))
+              makeMove(getPieceMoves(chessBoard, selectedX, selectedY, turn)[index])
+          selectedX, selectedY = -1, -1
+        else:
+          newCoordinate = coordinateToXY(pg.mouse.get_pos())
+          if chessBoard[newCoordinate[0]][newCoordinate[1]][1]==turn:
+            selectedX = newCoordinate[0]
+            selectedY = newCoordinate[1]
+  else:
+    order[WHITE] = playerOptions[whiteSelection][0]
+    order[BLACK] = playerOptions[blackSelection][0]
+    algoDepth[WHITE], algoDepth[BLACK] = playerOptions[whiteSelection][1], playerOptions[blackSelection][1]
+    for event in pg.event.get():
+      if event.type == pg.QUIT:
+        running = False
+      if event.type == pg.MOUSEBUTTONUP:
+        if pg.Rect(865, 350, 100, 40).collidepoint(pg.mouse.get_pos()):
+          whiteSelection-=1
+          whiteSelection%=5
+        if pg.Rect(1015, 350, 100, 40).collidepoint(pg.mouse.get_pos()):
+          blackSelection-=1
+          blackSelection%=5
+        if pg.Rect(865, 200, 100, 40).collidepoint(pg.mouse.get_pos()):
+          whiteSelection+=1
+          whiteSelection%=5
+        if pg.Rect(1015, 200, 100, 40).collidepoint(pg.mouse.get_pos()):
+          blackSelection+=1
+          blackSelection%=5
+        if pg.Rect(840, 400, 300, 78).collidepoint(pg.mouse.get_pos()):
+          gameStarted = True
 exit()
